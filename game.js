@@ -1,3 +1,4 @@
+import { Application, Assets, Sprite, Graphics, Text, TextStyle } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
 
 async function run() {
     const app = new Application();
@@ -10,6 +11,27 @@ async function run() {
     document.body.appendChild(app.canvas);
 
     const michielTexture = await Assets.load('assets/sprites/michiel.png');
+    const fruitTexture = await Assets.load('assets/sprites/strawberry.png');
+
+    // Score tracking
+    let collectedCount = 0;
+
+    const style = new TextStyle({
+        fill: '#ffffff',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        stroke: '#000000',
+        strokeThickness: 4,
+    });
+
+    const fruitSprites = [];
+    const fruitsToSpawn = 2;
+    const fruitPlatformIndexes = [];
+
+    const scoreText = new Text(`Fruit: 0/${fruitSprites.length}`, style);
+    scoreText.x = 20;
+    scoreText.y = 20;
+    app.stage.addChild(scoreText);
 
     const michiel = new Sprite(michielTexture);
     michiel.anchor.set(0.5);
@@ -38,6 +60,26 @@ async function run() {
     platformGraphics.endFill();
     app.stage.addChild(platformGraphics);
 
+    // Pick unique random platforms (excluding floor)
+    while (fruitPlatformIndexes.length < fruitsToSpawn) {
+        const index = Math.floor(Math.random() * (platforms.length - 1)) + 1;
+        if (!fruitPlatformIndexes.includes(index)) {
+            fruitPlatformIndexes.push(index);
+        }
+    }
+
+    for (const index of fruitPlatformIndexes) {
+        const plat = platforms[index];
+        const fruit = new Sprite(fruitTexture);
+        fruit.anchor.set(0.5);
+        fruit.scale.set(0.15);
+        fruit.x = plat.x + Math.random() * (plat.width - 40) + 5; // small margin
+        fruit.y = plat.y - 50;
+        fruit.collected = false;
+        fruitSprites.push(fruit);
+        app.stage.addChild(fruit);
+    }
+
     // Keyboard input
     const keys = {};
     window.addEventListener("keydown", e => keys[e.code] = true);
@@ -57,6 +99,17 @@ async function run() {
     }
 
     app.ticker.add(() => {
+
+        // Fruit collision detection
+        fruitSprites.forEach(fruit => {
+            if (!fruit.collected && Math.abs(michiel.x - fruit.x) < 30 && Math.abs(michiel.y - fruit.y) < 30) {
+                fruit.collected = true;
+                fruit.visible = false;
+                collectedCount++;
+                scoreText.text = `Fruit: ${collectedCount}/${fruitSprites.length}`;
+            }
+        });
+
         // Horizontal movement
         if (keys["ArrowLeft"]) michiel.x -= 5;
         if (keys["ArrowRight"]) michiel.x += 5;
