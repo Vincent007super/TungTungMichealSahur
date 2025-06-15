@@ -7,14 +7,15 @@ async function run() {
         height: window.innerHeight,
         backgroundColor: 0x333333,
     });
-
     document.body.appendChild(app.canvas);
 
     const michielTexture = await Assets.load('assets/sprites/michiel.png');
     const fruitTexture = await Assets.load('assets/sprites/strawberry.png');
+    const enemyTexture = michielTexture; // Tijdelijk: gebruik Michiel sprite als vijand
+    const projectileTexture = await Assets.load('assets/sprites/strawberry.png'); // Tijdelijk als kogel
 
-    // Score tracking
     let collectedCount = 0;
+    let lives = 3;
 
     const style = new TextStyle({
         fill: '#ffffff',
@@ -24,27 +25,26 @@ async function run() {
         strokeThickness: 4,
     });
 
-    const fruitSprites = [];
-    const fruitsToSpawn = 2;
-    const fruitPlatformIndexes = [];
-
-    const scoreText = new Text(`Fruit: 0/${fruitSprites.length}`, style);
+    const scoreText = new Text(`Fruit: 0`, style);
     scoreText.x = 20;
     scoreText.y = 20;
     app.stage.addChild(scoreText);
+
+    const livesText = new Text(`Lives: ${lives}`, style);
+    livesText.x = 20;
+    livesText.y = 50;
+    app.stage.addChild(livesText);
 
     const michiel = new Sprite(michielTexture);
     michiel.anchor.set(0.5);
     michiel.scale.set(0.3);
     michiel.x = app.screen.width / 2;
     michiel.y = 0;
-    michiel.vy = 0; // vertical speed/gravity effect
+    michiel.vy = 0;
     app.stage.addChild(michiel);
 
-    // Platforms (uiteindelijk moet dit random gegenereerd worden, maar voor nu hardcoded)
-    // const midY = app.screen.heighth/2; // Dit is de hoogte van het midden van het scherm, hiermee kunnen we later de platformen op goede hoogte forceren.
     const platforms = [
-        { x: 0, y: app.screen.height - 50, width: app.screen.width, height: 50 }, // Vloer
+        { x: 0, y: app.screen.height - 50, width: app.screen.width, height: 50 },
         { x: 100, y: 685, width: 200, height: 20 },
         { x: app.screen.width - 300, y: 536, width: 200, height: 20 },
         { x: 300, y: 636, width: 200, height: 20 },
@@ -54,13 +54,14 @@ async function run() {
 
     const platformGraphics = new Graphics();
     platformGraphics.beginFill(0x888888);
-    platforms.forEach(p => {
-        platformGraphics.drawRect(p.x, p.y, p.width, p.height);
-    });
+    platforms.forEach(p => platformGraphics.drawRect(p.x, p.y, p.width, p.height));
     platformGraphics.endFill();
     app.stage.addChild(platformGraphics);
 
-    // Pick unique random platforms (excluding floor)
+    const fruitSprites = [];
+    const fruitsToSpawn = 2;
+    const fruitPlatformIndexes = [];
+
     while (fruitPlatformIndexes.length < fruitsToSpawn) {
         const index = Math.floor(Math.random() * (platforms.length - 1)) + 1;
         if (!fruitPlatformIndexes.includes(index)) {
@@ -73,14 +74,39 @@ async function run() {
         const fruit = new Sprite(fruitTexture);
         fruit.anchor.set(0.5);
         fruit.scale.set(0.15);
-        fruit.x = plat.x + Math.random() * (plat.width - 40) + 5; // small margin
+        fruit.x = plat.x + Math.random() * (plat.width - 40) + 5;
         fruit.y = plat.y - 50;
         fruit.collected = false;
         fruitSprites.push(fruit);
         app.stage.addChild(fruit);
     }
 
-    // Keyboard input
+    // 👹 Enemy rechts, zelfde hoogte als Michiel
+    const enemy = new Sprite(enemyTexture);
+    enemy.anchor.set(0.5);
+    enemy.scale.set(0.6); // groter
+    enemy.x = app.screen.width - 100;
+    enemy.y = michiel.y; // tijdelijk, wordt constant bijgewerkt
+    app.stage.addChild(enemy);
+
+    const projectiles = [];
+
+    function shootProjectile() {
+        const proj = new Sprite(projectileTexture);
+        proj.anchor.set(0.5);
+        proj.scale.set(0.1);
+        proj.x = enemy.x - 60;
+        proj.y = enemy.y;
+        proj.vx = -6;
+        projectiles.push(proj);
+        app.stage.addChild(proj);
+    }
+
+    // Enemy schiet elke 1.5 seconden
+    setInterval(() => {
+        shootProjectile();
+    }, 1500);
+
     const keys = {};
     window.addEventListener("keydown", e => keys[e.code] = true);
     window.addEventListener("keyup", e => keys[e.code] = false);
@@ -99,38 +125,23 @@ async function run() {
     }
 
     app.ticker.add(() => {
-
-        // Fruit collision detection
-        fruitSprites.forEach(fruit => {
-            if (!fruit.collected && Math.abs(michiel.x - fruit.x) < 30 && Math.abs(michiel.y - fruit.y) < 30) {
-                fruit.collected = true;
-                fruit.visible = false;
-                collectedCount++;
-                scoreText.text = `Fruit: ${collectedCount}/${fruitSprites.length}`;
-            }
-        });
-
-        // Horizontal movement
+        // Beweeg Michiel
         if (keys["ArrowLeft"]) michiel.x -= 5;
         if (keys["ArrowRight"]) michiel.x += 5;
-
-        // Jump
         if (keys["Space"] && isStandingOnPlatform(michiel)) {
             michiel.vy = jumpVelocity;
         }
 
-        // Grivity toepassen
         michiel.vy += gravity;
         michiel.y += michiel.vy;
 
-        // Platform logica (checkt voor collision tussen michiel en platforms)
         const platform = platforms.find(p => {
             const feetX = michiel.x;
             const feetY = michiel.y + michiel.height / 2;
-            const wasAbove = michiel.vy >= 0;
+            const wasFalling = michiel.vy >= 0;
             const withinX = feetX > p.x && feetX < p.x + p.width;
             const hittingTop = feetY >= p.y && feetY <= p.y + p.height;
-            return withinX && hittingTop && wasAbove;
+            return withinX && hittingTop && wasFalling;
         });
 
         if (platform) {
@@ -138,10 +149,47 @@ async function run() {
             michiel.y = platform.y - michiel.height / 2;
         }
 
-        // Basic bounds
+        // Enemy op gelijke hoogte als Michiel
+        enemy.y = michiel.y;
+
+        // Fruit verzamelen
+        fruitSprites.forEach(fruit => {
+            if (!fruit.collected && Math.abs(michiel.x - fruit.x) < 30 && Math.abs(michiel.y - fruit.y) < 30) {
+                fruit.collected = true;
+                fruit.visible = false;
+                collectedCount++;
+                scoreText.text = `Fruit: ${collectedCount}`;
+            }
+        });
+
+        // Projectielen updaten
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const proj = projectiles[i];
+            proj.x += proj.vx;
+
+            if (Math.abs(proj.x - michiel.x) < 30 && Math.abs(proj.y - michiel.y) < 30) {
+                lives--;
+                livesText.text = `Lives: ${lives}`;
+                app.stage.removeChild(proj);
+                projectiles.splice(i, 1);
+
+                if (lives <= 0) {
+                    alert("Game Over 😵");
+                    window.location.reload();
+                }
+                continue;
+            }
+
+            if (proj.x < -100) {
+                app.stage.removeChild(proj);
+                projectiles.splice(i, 1);
+            }
+        }
+
+        // Grenschecks
         if (michiel.x < 35) michiel.x = 35;
         if (michiel.x > app.screen.width - 35) michiel.x = app.screen.width - 35;
-        if (michiel.y > app.screen.height + 200) michiel.y = 0; // Als je teveel naar beneden vaalt respawn je. Wel knap als dat je lukt
+        if (michiel.y > app.screen.height + 200) michiel.y = 0;
     });
 }
 
