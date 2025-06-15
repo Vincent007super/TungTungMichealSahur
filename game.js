@@ -1,4 +1,3 @@
-import { Application, Assets, Sprite, Graphics } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
 
 async function run() {
     const app = new Application();
@@ -14,13 +13,13 @@ async function run() {
 
     const michiel = new Sprite(michielTexture);
     michiel.anchor.set(0.5);
-    michiel.scale.set(0.3); // Make sure he's visible
+    michiel.scale.set(0.3);
     michiel.x = app.screen.width / 2;
     michiel.y = 0;
-    michiel.vy = 0; // vertical speed
+    michiel.vy = 0; // vertical speed/gravity effect
     app.stage.addChild(michiel);
 
-    // Platforms
+    // Platforms (meer te maken)
     const platforms = [
         { x: 0, y: app.screen.height - 50, width: app.screen.width, height: 50 },
         { x: 150, y: app.screen.height - 150, width: 200, height: 20 },
@@ -35,7 +34,7 @@ async function run() {
     platformGraphics.endFill();
     app.stage.addChild(platformGraphics);
 
-    // Input
+    // Keyboard input
     const keys = {};
     window.addEventListener("keydown", e => keys[e.code] = true);
     window.addEventListener("keyup", e => keys[e.code] = false);
@@ -63,11 +62,11 @@ async function run() {
             michiel.vy = jumpVelocity;
         }
 
-        // Apply gravity
+        // Grivity toepassen
         michiel.vy += gravity;
         michiel.y += michiel.vy;
 
-        // Check for collision with platforms
+        // Platform logica (checkt voor collision tussen michiel en platforms)
         const platform = platforms.find(p => {
             const feetX = michiel.x;
             const feetY = michiel.y + michiel.height / 2;
@@ -83,9 +82,9 @@ async function run() {
         }
 
         // Basic bounds
-        if (michiel.x < 0) michiel.x = 0;
-        if (michiel.x > app.screen.width) michiel.x = app.screen.width;
-        if (michiel.y > app.screen.height + 200) michiel.y = 0; // Respawn if fallen too far
+        if (michiel.x < 35) michiel.x = 35;
+        if (michiel.x > app.screen.width - 35) michiel.x = app.screen.width - 35;
+        if (michiel.y > app.screen.height + 200) michiel.y = 0; // Als je teveel naar beneden vaalt respawn je. Wel knap als dat je lukt
     });
 }
 
