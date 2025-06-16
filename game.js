@@ -21,7 +21,7 @@ async function run() {
         fontSize: 24,
         fontFamily: 'Arial',
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: 5,
     });
 
     const fruitSprites = [];
@@ -41,15 +41,18 @@ async function run() {
     michiel.vy = 0; // vertical speed/gravity effect
     app.stage.addChild(michiel);
 
+    // Formule voor de maximale hoogte van de platforms
+    const maxPlatformHeight = app.screen.height - 450; // Hoogte van het scherm min een marge
+    
     // Platforms (uiteindelijk moet dit random gegenereerd worden, maar voor nu hardcoded)
     // const midY = app.screen.heighth/2; // Dit is de hoogte van het midden van het scherm, hiermee kunnen we later de platformen op goede hoogte forceren.
     const platforms = [
-        { x: 0, y: app.screen.height - 50, width: app.screen.width, height: 50 }, // Vloer
-        { x: 100, y: 685, width: 200, height: 20 },
-        { x: app.screen.width - 300, y: 536, width: 200, height: 20 },
-        { x: 300, y: 636, width: 200, height: 20 },
-        { x: app.screen.width - 500, y: 840, width: 200, height: 20 },
-        { x: app.screen.width / 2 - 100, y: 550, width: 200, height: 20 },
+        { x: 0, y: maxPlatformHeight + 400, width: app.screen.width, height: 50 }, // Vloer
+        { x: 100, y: maxPlatformHeight + 200, width: 200, height: 20 },
+        { x: app.screen.width - 300, y: maxPlatformHeight + 400, width: 200, height: 20 },
+        { x: 300, y: maxPlatformHeight + 250, width: 200, height: 20 },
+        { x: app.screen.width - 500, y: maxPlatformHeight + 223, width: 200, height: 20 },
+        { x: app.screen.width / 2 - 100, y: maxPlatformHeight + 150, width: 200, height: 20 },
     ];
 
     const platformGraphics = new Graphics();
@@ -113,9 +116,17 @@ async function run() {
         // Horizontal movement
         if (keys["ArrowLeft"]) michiel.x -= 5;
         if (keys["ArrowRight"]) michiel.x += 5;
+        if (keys["KeyA"]) michiel.x -= 5;
+        if (keys["KeyD"]) michiel.x += 5;
 
         // Jump
         if (keys["Space"] && isStandingOnPlatform(michiel)) {
+            michiel.vy = jumpVelocity;
+        }
+        if (keys["ArrowUp"] && isStandingOnPlatform(michiel)) {
+            michiel.vy = jumpVelocity;
+        }
+        if (keys["KeyW"] && isStandingOnPlatform(michiel)) {
             michiel.vy = jumpVelocity;
         }
 
