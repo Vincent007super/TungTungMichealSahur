@@ -1,4 +1,5 @@
-import { Application, Assets, Sprite, Graphics, Text, TextStyle } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
+import { Application, Assets, Sprite, Graphics, Text, TextStyle, Container } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
+import { Boss } from '/boss.js';
 
 async function run() {
     const app = new Application();
@@ -12,6 +13,7 @@ async function run() {
 
     const michielTexture = await Assets.load('assets/sprites/michiel.png');
     const fruitTexture = await Assets.load('assets/sprites/strawberry.png');
+    const thomasTexture = await Assets.load('assets/sprites/thomas_de_trein.png');
 
     // Score tracking
     let collectedCount = 0;
@@ -38,16 +40,13 @@ async function run() {
     michiel.scale.set(0.3);
     michiel.x = app.screen.width / 2;
     michiel.y = 0;
-    michiel.vy = 0; // vertical speed/gravity effect
+    michiel.vy = 0;
     app.stage.addChild(michiel);
 
-    // Formule voor de maximale hoogte van de platforms
-    const maxPlatformHeight = app.screen.height - 450; // Hoogte van het scherm min een marge
-    
-    // Platforms (uiteindelijk moet dit random gegenereerd worden, maar voor nu hardcoded)
-    // const midY = app.screen.heighth/2; // Dit is de hoogte van het midden van het scherm, hiermee kunnen we later de platformen op goede hoogte forceren.
+    const maxPlatformHeight = app.screen.height - 450;
+
     const platforms = [
-        { x: 0, y: maxPlatformHeight + 400, width: app.screen.width, height: 50 }, // Vloer
+        { x: 0, y: maxPlatformHeight + 400, width: app.screen.width, height: 50 },
         { x: 100, y: maxPlatformHeight + 200, width: 200, height: 20 },
         { x: app.screen.width - 300, y: maxPlatformHeight + 400, width: 200, height: 20 },
         { x: 300, y: maxPlatformHeight + 250, width: 200, height: 20 },
@@ -63,7 +62,6 @@ async function run() {
     platformGraphics.endFill();
     app.stage.addChild(platformGraphics);
 
-    // Pick unique random platforms (excluding floor)
     while (fruitPlatformIndexes.length < fruitsToSpawn) {
         const index = Math.floor(Math.random() * (platforms.length - 1)) + 1;
         if (!fruitPlatformIndexes.includes(index)) {
@@ -76,12 +74,16 @@ async function run() {
         const fruit = new Sprite(fruitTexture);
         fruit.anchor.set(0.5);
         fruit.scale.set(0.15);
-        fruit.x = plat.x + Math.random() * (plat.width - 40) + 5; // small margin
+        fruit.x = plat.x + Math.random() * (plat.width - 40) + 5;
         fruit.y = plat.y - 50;
         fruit.collected = false;
         fruitSprites.push(fruit);
         app.stage.addChild(fruit);
     }
+
+    // Voeg Boss toe
+    const thomasBoss = new Boss(thomasTexture, app.screen.width - 100, maxPlatformHeight + 150);
+    app.stage.addChild(thomasBoss.container);
 
     // Keyboard input
     const keys = {};
@@ -102,39 +104,45 @@ async function run() {
     }
 
     app.ticker.add(() => {
-
-        // Fruit collision detection
+        // Fruit collision detection + animatie
         fruitSprites.forEach(fruit => {
             if (!fruit.collected && Math.abs(michiel.x - fruit.x) < 30 && Math.abs(michiel.y - fruit.y) < 30) {
                 fruit.collected = true;
-                fruit.visible = false;
                 collectedCount++;
                 scoreText.text = `Fruit: ${collectedCount}/${fruitSprites.length}`;
+
+                let scaleUp = true;
+                const animation = delta => {
+                    if (scaleUp) {
+                        fruit.scale.x += 0.05;
+                        fruit.scale.y += 0.05;
+                        if (fruit.scale.x >= 0.25) scaleUp = false;
+                    } else {
+                        fruit.scale.x -= 0.05;
+                        fruit.scale.y -= 0.05;
+                        if (fruit.scale.x <= 0.05) {
+                            fruit.visible = false;
+                            app.ticker.remove(animation);
+                        }
+                    }
+                };
+                app.ticker.add(animation);
             }
         });
 
         // Horizontal movement
-        if (keys["ArrowLeft"]) michiel.x -= 5;
-        if (keys["ArrowRight"]) michiel.x += 5;
-        if (keys["KeyA"]) michiel.x -= 5;
-        if (keys["KeyD"]) michiel.x += 5;
+        if (keys["ArrowLeft"] || keys["KeyA"]) michiel.x -= 5;
+        if (keys["ArrowRight"] || keys["KeyD"]) michiel.x += 5;
 
         // Jump
-        if (keys["Space"] && isStandingOnPlatform(michiel)) {
-            michiel.vy = jumpVelocity;
-        }
-        if (keys["ArrowUp"] && isStandingOnPlatform(michiel)) {
-            michiel.vy = jumpVelocity;
-        }
-        if (keys["KeyW"] && isStandingOnPlatform(michiel)) {
+        if ((keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) && isStandingOnPlatform(michiel)) {
             michiel.vy = jumpVelocity;
         }
 
-        // Grivity toepassen
         michiel.vy += gravity;
         michiel.y += michiel.vy;
 
-        // Platform logica (checkt voor collision tussen michiel en platforms)
+        // Platform collision
         const platform = platforms.find(p => {
             const feetX = michiel.x;
             const feetY = michiel.y + michiel.height / 2;
@@ -152,7 +160,10 @@ async function run() {
         // Basic bounds
         if (michiel.x < 35) michiel.x = 35;
         if (michiel.x > app.screen.width - 35) michiel.x = app.screen.width - 35;
-        if (michiel.y > app.screen.height + 200) michiel.y = 0; // Als je teveel naar beneden vaalt respawn je. Wel knap als dat je lukt
+        if (michiel.y > app.screen.height + 200) michiel.y = 0;
+
+        // Boss update
+        thomasBoss.update();
     });
 }
 
