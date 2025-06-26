@@ -14,6 +14,8 @@ async function run() {
 
     const michielTexture = await Assets.load('assets/sprites/michiel.png');
     const fruitTexture = await Assets.load('assets/sprites/strawberry.png');
+    let bossStarted = false;
+    let cherepanov;
 
     // Score tracking
     let reachedMaxFruits = false;
@@ -90,9 +92,11 @@ async function run() {
                 fruit.collected = true;
                 collectedCount++;
                 updateFruitLimits();
-                if (collectedCount == maxFruits) {
-                    reachedMaxFruits = true;
-                    platformManager.setReachedMaxFruits(true);
+            
+                if (collectedCount == 1 && !bossStarted) {
+                    bossStarted = true;
+                    cherepanov = new Boss(app, michiel); // Pass app and player to boss logic
+                    cherepanov.spawn();
                 }
                 scoreText.text = `Fruit: ${collectedCount}/${maxFruits}`;
 
@@ -158,6 +162,10 @@ async function run() {
         if (michiel.x < 35) michiel.x = 35;
         if (michiel.x > app.screen.width - 35) michiel.x = app.screen.width - 35;
         if (michiel.y > app.screen.height + 200) michiel.y = 0;
+
+        if (bossStarted && cherepanov) {
+            cherepanov.update(1); // Or delta time if you're using it
+        }
     });
 }
 
