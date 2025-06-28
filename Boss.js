@@ -9,6 +9,8 @@ export class Boss {
         this.attackTimer = 0;
         this.attackCooldown = 200; // Ticks
         this.projectiles = [];
+        this.health = 100; // Boss health
+        this.maxHealth = 100;
     }
 
     async spawn() {
@@ -30,6 +32,17 @@ export class Boss {
 
         // Update projectiles
         this.projectiles.forEach(p => p.update(delta));
+    }
+
+    // Nieuwe methode voor boss damage
+    takeDamage(amount) {
+        this.health = Math.max(0, this.health - amount);
+        console.log(`Boss krijgt ${amount} damage! HP: ${this.health}/${this.maxHealth}`);
+        
+        if (this.health <= 0) {
+            console.log("Boss is verslagen!");
+            // Boss defeat logica
+        }
     }
 
     shootCoal() {

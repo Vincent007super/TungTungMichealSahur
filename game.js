@@ -1,6 +1,7 @@
 import { Application, Assets, Sprite, Text, TextStyle } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
 import { Boss } from '/boss.js';
 import { PlatformManager } from './Platform.js';
+import { Player } from './player.js';
 
 async function run() {
     const app = new Application();
@@ -39,14 +40,10 @@ async function run() {
     scoreText.y = 20;
     app.stage.addChild(scoreText);
 
-    const michiel = new Sprite(michielTexture);
-    michiel.anchor.set(0.5);
-    michiel.scale.set(0.3);
-    michiel.x = app.screen.width / 2;
-    michiel.y = 0;
-    michiel.vy = 0;
-    michiel.width = 250;
-    app.stage.addChild(michiel);
+    // Gebruik de Player klasse in plaats van alleen een Sprite
+    const michiel = new Player(michielTexture, app.screen.width / 2, 0);
+    app.stage.addChild(michiel.sprite);
+    app.stage.addChild(michiel.healthBar);
 
     // Keyboard input
     const keys = {};
@@ -58,7 +55,7 @@ async function run() {
 
     function isStanding(michiel, platforms, floor) {
         const feetX = michiel.x;
-        const feetY = michiel.y + michiel.height / 2;
+        const feetY = michiel.y + michiel.sprite.height / 2;
     
         const onPlatform = platforms.some(p => {
             return (
@@ -93,11 +90,46 @@ async function run() {
                 collectedCount++;
                 updateFruitLimits();
             
-                if (collectedCount == 1 && !bossStarted) {
-                    bossStarted = true;
-                    cherepanov = new Boss(app, michiel); // Pass app and player to boss logic
-                    cherepanov.spawn();
+                // if (collectedCount == 1 && !bossStarted) {
+                //     bossStarted = true;
+                //     cherepanov = new Boss(app, michiel);
+                //     cherepanov.spawn();
+                // }
+
+                if (collectedCount === 2) {
+                    // Create a semi-transparent background
+                    const background = new PIXI.Graphics();
+                    background.beginFill(0x000000, 0.7);
+                    background.drawRect(0, 0, app.screen.width, app.screen.height);
+                    background.endFill();
+                    app.stage.addChild(background);
+
+                    // Create the popup text
+                    const popupText = new Text('Ga naar het volgende spel!', { fill: 'white', fontSize: 36, align: 'center' });
+                    popupText.anchor.set(0.5);
+                    popupText.x = app.screen.width / 2;
+                    popupText.y = app.screen.height / 2 - 50;
+                    app.stage.addChild(popupText);
+
+                    // Create the button
+                    const button = new PIXI.Graphics();
+                    button.beginFill(0x4CAF50);
+                    button.drawRect(-100, -25, 200, 50);
+                    button.endFill();
+                    button.x = app.screen.width / 2;
+                    button.y = app.screen.height / 2 + 50;
+                    button.interactive = true;
+                    button.buttonMode = true;
+                    button.on('pointerdown', () => {
+                        window.location.href = 'https://michielmobiel.vercel.app/';
+                    });
+                    app.stage.addChild(button);
+
+                    const buttonText = new Text('Klik hier', { fill: 'white', fontSize: 24 });
+                    buttonText.anchor.set(0.5);
+                    button.addChild(buttonText);
                 }
+
                 scoreText.text = `Fruit: ${collectedCount}/${maxFruits}`;
 
                 // Animate collection
@@ -120,52 +152,60 @@ async function run() {
             }
         });
 
-        // Horizontal movement
-        if (keys["ArrowLeft"] || keys["KeyA"]) michiel.x -= 7.5;
-        if (keys["ArrowRight"] || keys["KeyD"]) michiel.x += 7.5;
+        // Update player met nieuwe Player klasse
+        michiel.update(keys, gravity, jumpVelocity, platforms.concat([platformManager.getFloor()]));
 
-        // Jump
-        if ((keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) && isStanding(michiel, platforms, platformManager.getFloor())) {
-            michiel.vy = jumpVelocity;
-        }
-        
-        michiel.vy += gravity;
-        michiel.y += michiel.vy;
-
-        // Platform collision
-        const platform = platforms.find(p => {
-            const feetX = michiel.x;
-            const feetY = michiel.y + michiel.height / 2;
-            const wasFalling = michiel.vy >= 0;
-            const withinX = feetX > p.x && feetX < p.x + p.width;
-            const hittingTop = feetY >= p.y && feetY <= p.y + p.height;
-            return withinX && hittingTop && wasFalling;
-        });
-
-        const floor = platformManager.getFloor();
-        const feetX = michiel.x;
-        const feetY = michiel.y + michiel.height / 2;
-        
-        const onFloor =
-            michiel.vy >= 0 &&
-            feetX > floor.x &&
-            feetX < floor.x + floor.width &&
-            feetY >= floor.y &&
-            feetY <= floor.y + floor.height;
-        
-        if (platform || onFloor) {
-            michiel.vy = 0;
-            michiel.y = (platform || floor).y - michiel.height / 2;
-        }
-
-        // Basic bounds
-        if (michiel.x < 35) michiel.x = 35;
-        if (michiel.x > app.screen.width - 35) michiel.x = app.screen.width - 35;
-        if (michiel.y > app.screen.height + 200) michiel.y = 0;
-
-        if (bossStarted && cherepanov) {
-            cherepanov.update(1); // Or delta time if you're using it
-        }
+        // Boss update en collision detection - GEFIXTE VERSIE
+        // if (bossStarted && cherepanov) {
+        //     cherepanov.update(1);
+            
+        //     // Check collision tussen coals en Michiel - ALLEEN MICHIEL KRIJGT DAMAGE
+        //     const coalsToRemove = [];
+            
+        //     for (let i = cherepanov.projectiles.length - 1; i >= 0; i--) {
+        //         const coal = cherepanov.projectiles[i];
+                
+        //         // Simpelere checks - alleen controleren of coal bestaat
+        //         if (!coal || !coal.parent) {
+        //             coalsToRemove.push(i);
+        //             continue;
+        //         }
+                
+        //         let coalHit = false;
+                
+        //         // Check collision met Michiel
+        //         if (!coalHit && coal.checkCollision && typeof coal.checkCollision === 'function' && michiel.health > 0) {
+        //             try {
+        //                 if (coal.checkCollision(michiel)) {
+        //                     // Coal raakt Michiel
+        //                     michiel.takeDamage(coal.damage || 10);
+        //                     coalHit = true;
+        //                 }
+        //             } catch (error) {
+        //                 console.warn("Michiel collision detection error:", error);
+        //                 coalHit = true; // Verwijder problematische coal
+        //             }
+        //         }
+                
+        //         // Als coal iets heeft geraakt, markeer voor verwijdering
+        //         if (coalHit) {
+        //             coalsToRemove.push(i);
+                    
+        //             // Verwijder de coal van het scherm
+        //             if (coal.parent) {
+        //                 coal.parent.removeChild(coal);
+        //             }
+        //         }
+        //     }
+            
+        //     // Verwijder alle gemarkeerde coals uit de projectiles array
+        //     // Sorteer indices van hoog naar laag om array corruption te voorkomen
+        //     coalsToRemove.sort((a, b) => b - a).forEach(index => {
+        //         if (index >= 0 && index < cherepanov.projectiles.length) {
+        //             cherepanov.projectiles.splice(index, 1);
+        //         }
+        //     });
+        // }
     });
 }
 
