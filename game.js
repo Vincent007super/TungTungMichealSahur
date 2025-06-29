@@ -1,4 +1,4 @@
-import { Application, Assets, Sprite, Text, TextStyle } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
+import { Application, Assets, Sprite, Text, TextStyle, Graphics } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.0.0/dist/pixi.mjs';
 import { Boss } from '/boss.js';
 import { PlatformManager } from './Platform.js';
 import { Player } from './player.js';
@@ -98,7 +98,7 @@ async function run() {
 
                 if (collectedCount === 2) {
                     // Create a semi-transparent background
-                    const background = new PIXI.Graphics();
+                    const background = new Graphics();
                     background.beginFill(0x000000, 0.7);
                     background.drawRect(0, 0, app.screen.width, app.screen.height);
                     background.endFill();
@@ -112,7 +112,7 @@ async function run() {
                     app.stage.addChild(popupText);
 
                     // Create the button
-                    const button = new PIXI.Graphics();
+                    const button = new Graphics();
                     button.beginFill(0x4CAF50);
                     button.drawRect(-100, -25, 200, 50);
                     button.endFill();
